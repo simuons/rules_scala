@@ -387,17 +387,20 @@ def _colon_paths(data):
     ])
 
 def _gen_proto_srcjar_impl(ctx):
+    acc_sources = []
     acc_imports = []
     transitive_proto_paths = []
 
     jvm_deps = []
     for target in ctx.attr.deps:
         if hasattr(target, "proto"):
+            acc_sources.append(target.proto.check_deps_sources)
             acc_imports.append(target.proto.transitive_sources)
             transitive_proto_paths.append(target.proto.transitive_proto_path)
         else:
             jvm_deps.append(target)
 
+    acc_sources = depset(transitive = acc_sources)
     acc_imports = depset(transitive = acc_imports)
     if "java_conversions" in ctx.attr.flags and len(jvm_deps) == 0:
         fail(
@@ -406,7 +409,7 @@ def _gen_proto_srcjar_impl(ctx):
 
     deps_jars = collect_jars(jvm_deps)
 
-    worker_content = "{output}\n{paths}\n{flags_arg}\n{packages}".format(
+    worker_content = "{output}\n{paths}\n{flags_arg}\n{packages}\n{sources}".format(
         output = ctx.outputs.srcjar.path,
         paths = _colon_paths(acc_imports.to_list()),
         # Command line args to worker cannot be empty so using padding
@@ -414,6 +417,7 @@ def _gen_proto_srcjar_impl(ctx):
         # Command line args to worker cannot be empty so using padding
         packages = "-" +
                    ":".join(depset(transitive = transitive_proto_paths).to_list()),
+        sources = ":".join([f.path for f in sorted(acc_imports if ctx.attr.transitive else acc_sources)])
     )
     argfile = ctx.actions.declare_file(
         "%s_worker_input" % ctx.label.name,
@@ -455,6 +459,7 @@ scala_proto_srcjar = rule(
             cfg = "host",
             allow_files = True,
         ),
+        "transitive": attr.bool(default = True),
     },
     outputs = {
         "srcjar": "lib%{name}.srcjar",
