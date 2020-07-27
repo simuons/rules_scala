@@ -13,7 +13,7 @@ java_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":directory_utils",
-        "//third_party/bazel/src/main/protobuf:worker_protocol_java_proto",
+        "@bazel_tools//src/main/protobuf:worker_protocol_java_proto",
         "@bazel_tools//tools/jdk:JacocoCoverage",
         "@io_bazel_rules_scala//src/java/io/bazel/rulesscala/jar",
         "@io_bazel_rules_scala//src/java/io/bazel/rulesscala/worker",
