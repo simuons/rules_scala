@@ -62,6 +62,11 @@ def compile_scala(
         scalac,
         dependency_info,
         unused_dependency_checker_ignored_targets):
+
+    args = ctx.actions.args()
+    args.set_param_file_format("multiline")
+    args.use_param_file(param_file_arg = "@%s", use_always = True)
+
     # look for any plugins:
     input_plugins = plugins
     plugins = _collect_plugin_paths(plugins)
@@ -74,115 +79,65 @@ def compile_scala(
     if (hasattr(ctx.files, "classpath_resources")):
         classpath_resources = ctx.files.classpath_resources
 
-    optional_scalac_args_map = {}
-
     if dependency_info.use_analyzer:
         dep_plugin = ctx.attr._dependency_analyzer_plugin
         plugins = depset(transitive = [plugins, dep_plugin.files])
         internal_plugin_jars = ctx.files._dependency_analyzer_plugin
 
         current_target = str(target_label)
-        optional_scalac_args_map["CurrentTarget"] = current_target
+        args.add("--CurrentTarget", current_target)
 
     if dependency_info.need_indirect_info:
         transitive_cjars_list = transitive_compile_jars.to_list()
         indirect_jars = _join_path(transitive_cjars_list)
         indirect_targets = ",".join([str(labels[j.path]) for j in transitive_cjars_list])
 
-        optional_scalac_args_map["IndirectJars"] = indirect_jars
-        optional_scalac_args_map["IndirectTargets"] = indirect_targets
+        args.add_joined("--IndirectJars", transitive_compile_jars, join_with = ",", omit_if_empty = False)
+        args.add("--IndirectTargets", indirect_targets)
 
     if dependency_info.unused_deps_mode != "off":
         ignored_targets = ",".join([str(d) for d in unused_dependency_checker_ignored_targets])
-        optional_scalac_args_map["UnusedDepsIgnoredTargets"] = ignored_targets
+        args.add("--UnusedDepsIgnoredTargets", ignored_targets)
 
     if dependency_info.need_direct_info:
         cjars_list = cjars.to_list()
         if dependency_info.need_direct_jars:
             direct_jars = _join_path(cjars_list)
-            optional_scalac_args_map["DirectJars"] = direct_jars
+            args.add_joined("--DirectJars", cjars_list, join_with = ",", omit_if_empty = False)
         if dependency_info.need_direct_targets:
             direct_targets = ",".join([str(labels[j.path]) for j in cjars_list])
-            optional_scalac_args_map["DirectTargets"] = direct_targets
-
-    optional_scalac_args = "\n".join([
-        "{k}: {v}".format(k = k, v = v)
-        # We sort the arguments for input stability and reproducibility
-        for (k, v) in sorted(optional_scalac_args_map.items())
-    ])
-
-    plugins_list = plugins.to_list()
-    plugin_arg = _join_path(plugins_list)
-
-    separator = ctx.configuration.host_path_separator
-    compiler_classpath = _join_path(compiler_classpath_jars.to_list(), separator)
+            args.add("--DirectTargets", direct_targets)
 
     toolchain = ctx.toolchains["@io_bazel_rules_scala//scala:toolchain_type"]
     scalacopts = [ctx.expand_location(v, input_plugins) for v in toolchain.scalacopts + in_scalacopts]
     resource_paths = _resource_paths(resources, resource_strip_prefix)
     enable_diagnostics_report = toolchain.enable_diagnostics_report
 
-    scalac_args = """
-Classpath: {cp}
-ClasspathResourceSrcs: {classpath_resource_src}
-Files: {files}
-JarOutput: {out}
-Manifest: {manifest}
-Plugins: {plugin_arg}
-PrintCompileTime: {print_compile_time}
-ExpectJavaOutput: {expect_java_output}
-ResourceTargets: {resource_targets}
-ResourceSources: {resource_sources}
-ResourceJars: {resource_jars}
-ScalacOpts: {scala_opts}
-SourceJars: {srcjars}
-StrictDepsMode: {strict_deps_mode}
-UnusedDependencyCheckerMode: {unused_dependency_checker_mode}
-DependencyTrackingMethod: {dependency_tracking_method}
-StatsfileOutput: {statsfile_output}
-EnableDiagnosticsReport: {enable_diagnostics_report}
-DiagnosticsFile: {diagnostics_output}
-""".format(
-        out = output.path,
-        manifest = manifest.path,
-        # Using ':::' as delimiter because ',' can collide with actual scalac options
-        # https://github.com/bazelbuild/rules_scala/issues/1049
-        scala_opts = ":::".join(scalacopts),
-        print_compile_time = print_compile_time,
-        expect_java_output = expect_java_output,
-        plugin_arg = plugin_arg,
-        cp = compiler_classpath,
-        classpath_resource_src = _join_path(classpath_resources),
-        files = _join_path(sources),
-        srcjars = _join_path(all_srcjars.to_list()),
-        # the resource paths need to be aligned in order
-        resource_targets = ",".join([p[0] for p in resource_paths]),
-        resource_sources = ",".join([p[1] for p in resource_paths]),
-        resource_jars = _join_path(resource_jars),
-        strict_deps_mode = dependency_info.strict_deps_mode,
-        unused_dependency_checker_mode = dependency_info.unused_deps_mode,
-        dependency_tracking_method = dependency_info.dependency_tracking_method,
-        statsfile_output = statsfile.path,
-        enable_diagnostics_report = enable_diagnostics_report,
-        diagnostics_output = diagnosticsfile.path,
-    )
-
-    argfile = ctx.actions.declare_file(
-        "%s_scalac_worker_input" % target_label.name,
-        sibling = output,
-    )
-
-    ctx.actions.write(
-        output = argfile,
-        content = scalac_args + optional_scalac_args,
-    )
+    args.add_joined("--Classpath", compiler_classpath_jars, join_with = ctx.configuration.host_path_separator, omit_if_empty = False)
+    args.add_joined("--ClasspathResourceSrcs", classpath_resources, join_with = ",", omit_if_empty = False)
+    args.add_joined("--Files", sources, join_with = ",", omit_if_empty = False)
+    args.add("--JarOutput", output)
+    args.add("--Manifest", manifest)
+    args.add_joined("--Plugins", plugins, join_with = ",", omit_if_empty = False)
+    args.add("--PrintCompileTime", print_compile_time)
+    args.add("--ExpectJavaOutput", expect_java_output)
+    args.add_joined("--ResourceTargets", [p[0] for p in resource_paths], join_with = ",", omit_if_empty = False)
+    args.add_joined("--ResourceSources", [p[1] for p in resource_paths], join_with = ",", omit_if_empty = False)
+    args.add_joined("--ResourceJars", resource_jars, join_with = ",", omit_if_empty = False)
+    args.add_joined("--ScalacOpts", scalacopts, join_with = ":::", omit_if_empty = False)
+    args.add_joined("--SourceJars", all_srcjars, join_with = ",", omit_if_empty = False)
+    args.add("--StrictDepsMode", dependency_info.strict_deps_mode)
+    args.add("--UnusedDependencyCheckerMode", dependency_info.unused_deps_mode)
+    args.add("--DependencyTrackingMethod", dependency_info.dependency_tracking_method)
+    args.add("--StatsfileOutput", statsfile)
+    args.add("--EnableDiagnosticsReport", enable_diagnostics_report)
+    args.add("--DiagnosticsFile", diagnosticsfile)
 
     outs = [output, statsfile, diagnosticsfile]
 
-    ins = (
-        compiler_classpath_jars.to_list() + all_srcjars.to_list() + list(sources) +
-        plugins_list + internal_plugin_jars + classpath_resources + resources +
-        resource_jars + [manifest, argfile]
+    ins = depset(
+        direct = [manifest] + sources + internal_plugin_jars + classpath_resources + resources + resource_jars + scalac_inputs,
+        transitive = [compiler_classpath_jars, all_srcjars, plugins]
     )
 
     # scalac_jvm_flags passed in on the target override scalac_jvm_flags passed in on the
@@ -210,7 +165,7 @@ DiagnosticsFile: {diagnostics_output}
             arguments = [
                 "--jvm_flag=%s" % f
                 for f in expand_location(ctx, final_scalac_jvm_flags)
-            ] + ["@" + argfile.path],
+            ] + [args],
             diagnostics_file = diagnosticsfile,
         )
     else:
@@ -232,7 +187,7 @@ DiagnosticsFile: {diagnostics_output}
             arguments = [
                 "--jvm_flag=%s" % f
                 for f in expand_location(ctx, final_scalac_jvm_flags)
-            ] + ["@" + argfile.path],
+            ] + [args],
         )
 
 def compile_java(ctx, source_jars, source_files, output, extra_javac_opts, providers_of_dependencies):
