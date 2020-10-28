@@ -1,7 +1,6 @@
-load("@bazel_skylib//lib:versions.bzl", "versions")
 
 def _store_bazel_version(repository_ctx):
-    bazel_version = versions.get()
+    bazel_version = native.bazel_version
     repository_ctx.file("BUILD", "exports_files(['def.bzl'])")
     repository_ctx.file("def.bzl", "BAZEL_VERSION='" + bazel_version + "'")
 
