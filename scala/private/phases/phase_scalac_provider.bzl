@@ -7,17 +7,13 @@ load(
     "@io_bazel_rules_scala//scala:providers.bzl",
     _ScalacProvider = "ScalacProvider",
 )
-load(
-    "@io_bazel_rules_scala//scala/private/toolchain_deps:toolchain_deps.bzl",
-    "find_deps_info_on",
-)
 
 def phase_scalac_provider(ctx, p):
-    toolchain_type_label = "@io_bazel_rules_scala//scala:toolchain_type"
+    tc = ctx.toolchains["@io_bazel_rules_scala//scala/runtime:toolchain_type"]
 
-    library_classpath = find_deps_info_on(ctx, toolchain_type_label, "scala_library_classpath").deps
-    compile_classpath = find_deps_info_on(ctx, toolchain_type_label, "scala_compile_classpath").deps
-    macro_classpath = find_deps_info_on(ctx, toolchain_type_label, "scala_macro_classpath").deps
+    library_classpath = tc.library
+    compile_classpath = []
+    macro_classpath = tc.library
 
     return _ScalacProvider(
         default_classpath = library_classpath,

@@ -100,6 +100,7 @@ def make_scala_library(*extras):
             *[extra["outputs"] for extra in extras if "outputs" in extra]
         ),
         toolchains = [
+            "@io_bazel_rules_scala//scala/runtime:toolchain_type",
             "@io_bazel_rules_scala//scala:toolchain_type",
             "@bazel_tools//tools/jdk:toolchain_type",
         ],
@@ -169,12 +170,6 @@ _scala_library_for_plugin_bootstrapping_attrs.update(implicit_deps)
 # which does not contain plugin related attributes, and thus avoids the cyclic dependency issue
 _scala_library_for_plugin_bootstrapping_attrs.update({
     "build_ijar": attr.bool(default = True),
-    "_scalac": attr.label(
-        executable = True,
-        cfg = "exec",
-        default = Label("@io_bazel_rules_scala//src/java/io/bazel/rulesscala/scalac:scalac_bootstrap"),
-        allow_files = True,
-    ),
 })
 
 _scala_library_for_plugin_bootstrapping_attrs.update(_library_attrs)
@@ -198,6 +193,7 @@ def make_scala_library_for_plugin_bootstrapping(*extras):
             *[extra["outputs"] for extra in extras if "outputs" in extra]
         ),
         toolchains = [
+            "@io_bazel_rules_scala//scala/runtime:toolchain_type",
             "@io_bazel_rules_scala//scala:toolchain_type",
             "@bazel_tools//tools/jdk:toolchain_type",
         ],
@@ -270,6 +266,7 @@ def make_scala_macro_library(*extras):
             *[extra["outputs"] for extra in extras if "outputs" in extra]
         ),
         toolchains = [
+            "@io_bazel_rules_scala//scala/runtime:toolchain_type",
             "@io_bazel_rules_scala//scala:toolchain_type",
             "@bazel_tools//tools/jdk:toolchain_type",
         ],

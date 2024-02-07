@@ -34,6 +34,24 @@ rules_scala_setup()
 
 rules_scala_toolchain_deps_repositories(fetch_sources = True)
 
+load("//scala/runtime:repository.bzl", "scala_runtime")
+
+scala_runtime(
+    name = "scala_toolchain_2.12.18",
+    compiler = "@io_bazel_rules_scala_scala_compiler",
+    library = [
+        "@io_bazel_rules_scala_scala_library",
+        "@io_bazel_rules_scala_scala_reflect",
+    ],
+    version = "2.12.18",
+)
+
+register_toolchains("@scala_toolchain_2.12.18//:all")
+
+load("@io_bazel_rules_scala//scala:toolchains.bzl", "scala_register_toolchains")
+
+scala_register_toolchains()
+
 load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
 
 # Declares @com_google_protobuf//:protoc pointing to released binary
@@ -97,9 +115,9 @@ local_repository(
     path = "third_party/test/example_external_workspace",
 )
 
-load("@io_bazel_rules_scala//scala:toolchains.bzl", "scala_register_unused_deps_toolchains")
+#load("@io_bazel_rules_scala//scala:toolchains.bzl", "scala_register_unused_deps_toolchains")
 
-scala_register_unused_deps_toolchains()
+#scala_register_unused_deps_toolchains()
 
 register_toolchains("@io_bazel_rules_scala//test/proto:scalapb_toolchain")
 

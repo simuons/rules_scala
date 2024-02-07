@@ -84,12 +84,6 @@ implicit_deps = {
     "_java_runtime": attr.label(
         default = Label("@bazel_tools//tools/jdk:current_java_runtime"),
     ),
-    "_scalac": attr.label(
-        executable = True,
-        cfg = "exec",
-        default = Label("@io_bazel_rules_scala//src/java/io/bazel/rulesscala/scalac"),
-        allow_files = True,
-    ),
     "_exe": attr.label(
         executable = True,
         cfg = "exec",

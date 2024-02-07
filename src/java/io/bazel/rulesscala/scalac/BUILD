@@ -59,3 +59,30 @@ filegroup(
     ),
     visibility = ["//visibility:public"],
 )
+
+# filegroup or export_files doesn't work because java_binary emits warning about misplaced sources
+# packaging sources to srcjar does solve this issue
+load("//scala/runtime:bootstrap.bzl", "source_jar")
+
+source_jar(
+    name = "scalac_2",
+    srcs = [
+        "ReportableMainClass.java",
+        "ScalacInvoker.java",
+        "ScalacInvokerResults.java",
+        "ScalacWorker.java",
+    ],
+    outs = "scalac_2.srcjar",
+    visibility = ["//visibility:public"],
+)
+
+source_jar(
+    name = "scalac_3",
+    srcs = [
+        "ReportableMainClass.java",
+        "ScalacInvoker.java",
+        "ScalacInvoker3.java",
+    ],
+    outs = "scalac_3.srcjar",
+    visibility = ["//visibility:public"],
+)

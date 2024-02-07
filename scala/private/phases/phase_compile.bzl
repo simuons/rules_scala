@@ -221,7 +221,7 @@ def _compile_or_empty(
             ctx.attr.expect_java_output,
             ctx.attr.scalac_jvm_flags,
             scalacopts,
-            ctx.executable._scalac,
+            ctx.toolchains["@io_bazel_rules_scala//scala/runtime:toolchain_type"].compiler,
             dependency_info,
             unused_dependency_checker_ignored_targets,
             additional_outputs,
